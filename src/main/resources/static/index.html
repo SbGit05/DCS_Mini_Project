@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributed Banking System | Secure Portal</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .auth-wrapper {
+            max-width: 480px;
+            margin: 3rem auto;
+        }
+        .demo-badges {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        .demo-btn {
+            font-size: 0.75rem;
+            padding: 0.35rem 0.65rem;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            color: var(--primary-navy);
+            font-weight: 500;
+        }
+        .demo-btn:hover {
+            background: #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation Header -->
+    <header class="navbar">
+        <a href="/" class="navbar-brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v4M12 14v4M16 14v4"/>
+            </svg>
+            Distributed Banking System
+            <span class="brand-badge">Java RMI • 2PC • MySQL</span>
+        </a>
+        <div class="navbar-user">
+            <span class="badge badge-online">Cluster Active</span>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="auth-wrapper">
+            <div id="alertBox" class="alert"></div>
+
+            <div class="card">
+                <!-- Navigation Tabs -->
+                <div class="tabs">
+                    <button class="tab-btn active" id="tabCustomerBtn" onclick="switchTab('customer')">Customer Portal</button>
+                    <button class="tab-btn" id="tabAdminBtn" onclick="switchTab('admin')">Administrator Portal</button>
+                </div>
+
+                <!-- Customer Form Section -->
+                <div id="customerTab" class="tab-content active">
+                    <h2 class="card-title" id="customerFormTitle">Customer Sign In</h2>
+
+                    <form id="customerLoginForm" onsubmit="handleCustomerLogin(event)">
+                        <div class="form-group">
+                            <label class="form-label" for="custUsername">Username</label>
+                            <input type="text" id="custUsername" class="form-control" placeholder="e.g. shreedhar" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="custPassword">Password</label>
+                            <input type="password" id="custPassword" class="form-control" placeholder="••••••••" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In as Customer</button>
+
+                        <div class="demo-badges">
+                            <span style="font-size: 0.75rem; color: var(--text-muted); align-self: center;">Quick Demo Login:</span>
+                            <button type="button" class="demo-btn" onclick="fillCustomer('shreedhar', 'user123')">Pune: Shreedhar</button>
+                            <button type="button" class="demo-btn" onclick="fillCustomer('rahul', 'user123')">Mumbai: Rahul</button>
+                        </div>
+                        <p style="margin-top: 1.25rem; font-size: 0.85rem; text-align: center; color: var(--text-muted);">
+                            Don't have an account? <a href="#" onclick="toggleCustomerRegister(true)" style="color: var(--accent-blue); font-weight: 600;">Register Here</a>
+                        </p>
+                    </form>
+
+                    <!-- Customer Registration Form -->
+                    <form id="customerRegisterForm" style="display: none;" onsubmit="handleCustomerRegister(event)">
+                        <div class="form-group">
+                            <label class="form-label" for="regUsername">Choose Username</label>
+                            <input type="text" id="regUsername" class="form-control" placeholder="e.g. anita_k" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="regFullName">Full Legal Name</label>
+                            <input type="text" id="regFullName" class="form-control" placeholder="e.g. Anita Kulkarni" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="regEmail">Email Address</label>
+                            <input type="email" id="regEmail" class="form-control" placeholder="anita@example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="regBranch">Home Bank Branch</label>
+                            <select id="regBranch" class="form-control" required>
+                                <option value="1">Branch 1: Pune Central Branch (PUN)</option>
+                                <option value="2">Branch 2: Mumbai Main Branch (MUM)</option>
+                                <option value="3">Branch 3: Delhi Regional Hub (DEL)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="regPassword">Password (min 6 chars)</label>
+                            <input type="password" id="regPassword" class="form-control" placeholder="••••••••" minlength="6" required>
+                        </div>
+                        <button type="submit" class="btn btn-accent" style="width: 100%;">Create Customer Account</button>
+                        <p style="margin-top: 1.25rem; font-size: 0.85rem; text-align: center; color: var(--text-muted);">
+                            Already have an account? <a href="#" onclick="toggleCustomerRegister(false)" style="color: var(--accent-blue); font-weight: 600;">Back to Sign In</a>
+                        </p>
+                    </form>
+                </div>
+
+                <!-- Admin Tab Section -->
+                <div id="adminTab" class="tab-content">
+                    <h2 class="card-title">System Administrator Access</h2>
+                    <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
+                        <div class="form-group">
+                            <label class="form-label" for="adminUsername">Administrator Username</label>
+                            <input type="text" id="adminUsername" class="form-control" value="admin" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="adminPassword">Administrator Password</label>
+                            <input type="password" id="adminPassword" class="form-control" value="admin123" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Enter Administrator Dashboard</button>
+                        <div class="demo-badges">
+                            <span style="font-size: 0.75rem; color: var(--text-muted); align-self: center;">Default:</span>
+                            <button type="button" class="demo-btn" onclick="fillAdmin('admin', 'admin123')">admin / admin123</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Architecture Info Card -->
+            <div class="card" style="font-size: 0.825rem; color: var(--text-muted); background: #f8fafc;">
+                <p><strong>System Architecture Note:</strong> This application demonstrates a multi-branch distributed banking system featuring authentic Java Remote Method Invocation (RMI), Two-Phase Commit (2PC) atomic inter-branch transactions, Lamport logical clocks, Bully leader election, and automated replication reconciliation.</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        Distributed Computing Systems Laboratory Mini Project • B.Tech Computer Engineering
+    </footer>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Dashboard | Distributed Banking System</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .account-hero {
+            background: linear-gradient(135deg, var(--primary-navy) 0%, var(--primary-navy-light) 100%);
+            color: #fff;
+            padding: 2rem;
+            border-radius: var(--radius-lg);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-md);
+        }
+        .hero-left h1 {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #93c5fd;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .hero-balance {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0.35rem 0;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .hero-details {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 0.5rem;
+        }
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .badge-type {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+        .badge-deposit { background: #dcfce7; color: #15803d; }
+        .badge-withdrawal { background: #fee2e2; color: #b91c1c; }
+        .badge-transfer-local { background: #e0f2fe; color: #0369a1; }
+        .badge-transfer-dist { background: #fef3c7; color: #b45309; }
+    </style>
+</head>
+<body>
+
+    <header class="navbar">
+        <a href="/customer.html" class="navbar-brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v4M12 14v4M16 14v4"/>
+            </svg>
+            Distributed Banking System
+            <span class="brand-badge">Customer Portal</span>
+        </a>
+        <div class="navbar-user">
+            <div class="user-badge">
+                <span id="navUserName" style="font-weight: 600;">Customer</span>
+                <span class="user-role" id="navUserRole">ROLE_CUSTOMER</span>
+            </div>
+            <button onclick="logout()" class="btn btn-outline btn-sm" style="color: #fff; border-color: rgba(255,255,255,0.3);">Sign Out</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Global Feedback Message -->
+        <div id="alertBox" class="alert"></div>
+
+        <!-- Account Hero Summary -->
+        <div class="account-hero">
+            <div class="hero-left">
+                <h1>Available Account Balance</h1>
+                <div class="hero-balance" id="displayBalance">₹ --.--</div>
+                <div class="hero-details">
+                    <span>Account: <strong class="mono" id="displayAccountNumber">Loading...</strong></span>
+                    <span>Branch: <strong id="displayBranchName">Loading...</strong></span>
+                    <span>Status: <span class="badge badge-online" id="displayAccountStatus">ACTIVE</span></span>
+                </div>
+            </div>
+            <div class="hero-right" style="text-align: right;">
+                <button onclick="loadAccountData()" class="btn btn-outline btn-sm" style="color: #fff; border-color: rgba(255,255,255,0.4); margin-bottom: 0.5rem;">
+                    🔄 Refresh Balance
+                </button>
+                <div style="font-size: 0.75rem; color: #94a3b8;">
+                    Branch Routing: <span class="mono" id="displayBranchCode">PUN01</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Operations Section -->
+        <div class="actions-grid">
+            <!-- 1. Deposit Card -->
+            <div class="card">
+                <h3 class="card-title">
+                    <span>💰 Deposit Funds</span>
+                    <span class="badge badge-primary">Instant</span>
+                </h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Funds are credited immediately using pessimistic row-level database locking and peer replication.
+                </p>
+                <form id="depositForm" onsubmit="handleDeposit(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="depositAmount">Deposit Amount (₹)</label>
+                        <input type="number" step="0.01" min="1" id="depositAmount" class="form-control" placeholder="1000.00" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Confirm Deposit</button>
+                </form>
+            </div>
+
+            <!-- 2. Withdrawal Card -->
+            <div class="card">
+                <h3 class="card-title">
+                    <span>💳 Withdraw Funds</span>
+                    <span class="badge badge-primary">Atomic</span>
+                </h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Exclusive database locks prevent race conditions and overdrafts during concurrent withdrawals.
+                </p>
+                <form id="withdrawForm" onsubmit="handleWithdraw(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="withdrawAmount">Withdrawal Amount (₹)</label>
+                        <input type="number" step="0.01" min="1" id="withdrawAmount" class="form-control" placeholder="500.00" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Confirm Withdrawal</button>
+                </form>
+            </div>
+
+            <!-- 3. Transfer Card -->
+            <div class="card">
+                <h3 class="card-title">
+                    <span>🔄 Fund Transfer</span>
+                    <span class="badge badge-primary">Local / 2PC</span>
+                </h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Cross-branch transfers automatically invoke the distributed <strong>Two-Phase Commit (2PC)</strong> protocol.
+                </p>
+                <form id="transferForm" onsubmit="handleTransfer(event)">
+                    <div class="form-group">
+                        <label class="form-label" for="targetAccount">Destination Account Number</label>
+                        <input type="text" id="targetAccount" class="form-control mono" placeholder="e.g. MUM-2001 or PUN-1002" required>
+                        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem;">
+                            Hint: <a href="javascript:void(0)" onclick="fillTarget('MUM-2001')" style="color: var(--accent-blue);">MUM-2001 (Mumbai 2PC)</a> |
+                            <a href="javascript:void(0)" onclick="fillTarget('PUN-1002')" style="color: var(--accent-blue);">PUN-1002 (Local)</a>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="transferAmount">Transfer Amount (₹)</label>
+                        <input type="number" step="0.01" min="1" id="transferAmount" class="form-control" placeholder="1500.00" required>
+                    </div>
+                    <button type="submit" class="btn btn-accent" style="width: 100%;">Execute Transfer</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Passbook / Transaction History -->
+        <div class="card">
+            <div class="card-title">
+                <span>📜 Account Passbook & Transaction History</span>
+                <button onclick="loadTransactions()" class="btn btn-outline btn-sm">Refresh Log</button>
+            </div>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Reference ID</th>
+                            <th>Timestamp</th>
+                            <th>Type</th>
+                            <th>Counterparty</th>
+                            <th>Amount (₹)</th>
+                            <th>L(e)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsTableBody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading account transactions...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        Distributed Banking System • Powered by Java RMI, Two-Phase Commit, Lamport Clocks & MySQL
+    </footer>
+
+    <script src="/js/customer.js"></script>
+</body>
+</html>
