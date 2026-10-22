@@ -135,4 +135,49 @@ public class WebControllerIntegrationTest {
                         .header("Authorization", customerToken))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    @DisplayName("Scenario 19: Direct Election API Call Rejected When Initiator is Stopped")
+    void testRejectElectionWhenInitiatorUnavailable() throws Exception {
+        // Admin Login
+        String adminLoginJson = objectMapper.writeValueAsString(Map.of(
+                "username", "admin",
+                "password", "admin123"
+        ));
+        MvcResult adminLoginResult = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(adminLoginJson))
+                .andExpect(status().isOk())
+                .andReturn();
+        Map<?, ?> adminData = objectMapper.readValue(adminLoginResult.getResponse().getContentAsString(), Map.class);
+        String adminToken = "Bearer " + adminData.get("token");
+
+        try {
+            // Stop Node 3 via API
+            mockMvc.perform(post("/api/distributed/node/3/stop")
+                            .header("Authorization", adminToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.state").value("STOPPED"));
+
+            // Attempt election from stopped Node 3 via API
+            mockMvc.perform(post("/api/distributed/election/start?initiatorId=3")
+                            .header("Authorization", adminToken))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.error", containsString("Election cannot be started: Node 3 is STOPPED")));
+
+            // Direct election from running Node 2 must succeed and elect Node 2
+            mockMvc.perform(post("/api/distributed/election/start?initiatorId=2")
+                            .header("Authorization", adminToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.electedLeaderId").value(2));
+
+        } finally {
+            // Restore Node 3 to RUNNING
+            mockMvc.perform(post("/api/distributed/node/3/start")
+                            .header("Authorization", adminToken))
+                    .andExpect(status().isOk());
+        }
+    }
 }

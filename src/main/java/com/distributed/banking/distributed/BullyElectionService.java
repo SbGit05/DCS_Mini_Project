@@ -14,14 +14,18 @@ import java.util.*;
 import java.util.concurrent.*;
 
 /**
- * Authentic implementation of the Bully Leader Election Algorithm
- * across distributed coordinator / branch nodes.
+ * Standard implementation of the Bully Leader Election Algorithm
+ * with strict node liveness verification and rejection of unavailable initiators.
  *
  * Algorithm Rules:
  * 1. Process P notices coordinator failure and initiates an election.
+ *    P must be RUNNING and eligible; an unavailable initiator is rejected immediately.
  * 2. P sends an ELECTION message to all processes with higher IDs (P_higher > P).
- * 3. If no process responds, P wins the election and sends a COORDINATOR message to all.
- * 4. If any process with a higher ID responds with OK, P's job is done and the higher process continues.
+ * 3. Unavailable (STOPPED, CRASHED) nodes are excluded and do not respond.
+ * 4. If a higher-ID eligible node responds with OK, that node takes over the election.
+ * 5. If no higher-ID eligible node responds, P wins the election and sends a COORDINATOR
+ *    announcement to all cluster nodes.
+ * 6. Under no circumstances can a STOPPED or CRASHED node become the coordinator.
  */
 @Component
 public class BullyElectionService {
@@ -36,7 +40,7 @@ public class BullyElectionService {
     private final Map<Long, BranchServiceRemote> nodeStubs = new ConcurrentHashMap<>();
     private final List<Map<String, Object>> electionEventHistory = new CopyOnWriteArrayList<>();
 
-    private volatile Long currentLeaderId = 3L; // Initially Node 3 (highest ID) is leader
+    private volatile Long currentLeaderId = 3L; // Initially Node 3 is leader if running
 
     public BullyElectionService(BranchRepository branchRepository,
                                 LamportEventRepository eventRepository,
@@ -54,61 +58,195 @@ public class BullyElectionService {
 
     /**
      * Initiates the Bully election algorithm starting from initiatorNodeId.
+     * Enforces strict liveness validation on the initiator and participant nodes.
      */
     public synchronized Map<String, Object> startElection(Long initiatorNodeId) {
         electionEventHistory.clear();
         long startTs = lamportClock.tick();
 
-        log.info("[BULLY-ELECTION] Node {} detected coordinator failure and initiated Bully Election! L(e)={}",
-                initiatorNodeId, startTs);
+        // 1. Verify that the initiating node exists
+        Branch initiator = branchRepository.findById(initiatorNodeId).orElse(null);
+        if (initiator == null) {
+            String err = "Election cannot be started: Node " + initiatorNodeId + " does not exist.";
+            recordElectionStep("ELECTION_REJECTED", initiatorNodeId, err, startTs);
+            throw new IllegalArgumentException(err);
+        }
 
+        // 2. Verify that the initiating node is currently RUNNING and eligible
+        BranchServiceRemote initiatorStub = nodeStubs.get(initiatorNodeId);
+        boolean isStubAlive = false;
+        if (initiatorStub != null) {
+            try {
+                isStubAlive = initiatorStub.isNodeAlive();
+            } catch (Exception ignored) {
+                isStubAlive = false;
+            }
+        }
+
+        if (!initiator.isRunning() || !isStubAlive) {
+            String status = initiator.getStatus() != null ? initiator.getStatus() : "UNAVAILABLE";
+            String err = "Election cannot be started: Node " + initiatorNodeId + " is " + status + ".";
+            recordElectionStep("ELECTION_REJECTED", initiatorNodeId, err, startTs);
+            log.warn("[BULLY-ELECTION-REJECTED] Node {} tried to initiate election but is {}", initiatorNodeId, status);
+            throw new IllegalStateException(err);
+        }
+
+        log.info("[BULLY-ELECTION] Node {} initiated Bully Election. L(e)={}", initiatorNodeId, startTs);
         recordElectionStep("ELECTION_INITIATED", initiatorNodeId,
-                "Node " + initiatorNodeId + " detected coordinator failure and initiated Bully election.", startTs);
+                "Election requested by Node " + initiatorNodeId + " (" + initiator.getBranchName() + ")", startTs);
 
+        // 3. Retrieve authoritative current state of all nodes from backend
         List<Branch> allBranches = branchRepository.findAllByOrderByIdAsc();
+
+        // Check if ANY eligible running nodes exist
+        List<Branch> eligibleNodes = allBranches.stream()
+                .filter(b -> {
+                    if (!b.isRunning()) return false;
+                    BranchServiceRemote stub = nodeStubs.get(b.getId());
+                    if (stub == null) return false;
+                    try {
+                        return stub.isNodeAlive();
+                    } catch (Exception e) {
+                        return false;
+                    }
+                })
+                .toList();
+
+        if (eligibleNodes.isEmpty()) {
+            String err = "Election failed: No eligible nodes are available.";
+            recordElectionStep("ELECTION_FAILED", initiatorNodeId, err, lamportClock.tick());
+            this.currentLeaderId = null;
+            coordinator.setActiveCoordinatorId(null);
+            for (Branch b : allBranches) {
+                b.setIsCoordinator(false);
+                branchRepository.save(b);
+            }
+            throw new IllegalStateException(err);
+        }
+
+        // 4. Bully Algorithm Execution:
+        // Initiator sends ELECTION messages to all nodes with higher IDs
         List<Branch> higherNodes = allBranches.stream()
                 .filter(b -> b.getId() > initiatorNodeId)
                 .toList();
 
-        boolean higherNodeResponded = false;
-        Long highestRespondingNode = initiatorNodeId;
+        Long highestRespondingNode = null;
 
         if (higherNodes.isEmpty()) {
             recordElectionStep("NO_HIGHER_NODES", initiatorNodeId,
-                    "Node " + initiatorNodeId + " is already the highest numbered node in the cluster.", lamportClock.tick());
+                    "No higher-ID nodes exist in the cluster. Node " + initiatorNodeId + " is the highest node.", lamportClock.tick());
         } else {
             for (Branch higher : higherNodes) {
                 long msgTs = lamportClock.tick();
                 recordElectionStep("ELECTION_SENT", initiatorNodeId,
-                        "Node " + initiatorNodeId + " sending ELECTION message to higher Node " + higher.getId() + " (" + higher.getBranchName() + ")", msgTs);
+                        "Node " + initiatorNodeId + " sent an election message to Node " + higher.getId() + " (" + higher.getBranchName() + ")", msgTs);
 
                 BranchServiceRemote stub = nodeStubs.get(higher.getId());
-                if (stub != null) {
+                boolean responds = false;
+
+                if (higher.isRunning() && stub != null) {
                     try {
-                        ElectionMessage reply = stub.handleElection(
-                                new ElectionMessage(initiatorNodeId, "Initiator-" + initiatorNodeId, ElectionMessage.Type.ELECTION, msgTs)
-                        );
-                        if (reply != null && reply.getType() == ElectionMessage.Type.OK) {
-                            long replyTs = lamportClock.updateAndTick(reply.getLamportTimestamp());
-                            higherNodeResponded = true;
-                            highestRespondingNode = higher.getId();
-                            recordElectionStep("OK_RECEIVED", higher.getId(),
-                                    "Higher Node " + higher.getId() + " replied with OK to Node " + initiatorNodeId + ". Higher node assumes leadership.", replyTs);
+                        if (stub.isNodeAlive()) {
+                            ElectionMessage reply = stub.handleElection(
+                                    new ElectionMessage(initiatorNodeId, "Initiator-" + initiatorNodeId, ElectionMessage.Type.ELECTION, msgTs)
+                            );
+                            if (reply != null && reply.getType() == ElectionMessage.Type.OK) {
+                                long replyTs = lamportClock.updateAndTick(reply.getLamportTimestamp());
+                                responds = true;
+                                highestRespondingNode = higher.getId();
+                                recordElectionStep("OK_RECEIVED", higher.getId(),
+                                        "Node " + higher.getId() + " replied with OK to Node " + initiatorNodeId + ". Node " + higher.getId() + " takes over the election.", replyTs);
+                            }
                         }
                     } catch (Exception e) {
-                        recordElectionStep("NODE_UNREACHABLE", higher.getId(),
-                                "Higher Node " + higher.getId() + " failed to respond (offline / unreachable).", lamportClock.tick());
+                        responds = false;
                     }
-                } else {
-                    recordElectionStep("NODE_UNREACHABLE", higher.getId(),
-                            "Higher Node " + higher.getId() + " RMI stub not connected.", lamportClock.tick());
+                }
+
+                if (!responds) {
+                    recordElectionStep("NODE_EXCLUDED", higher.getId(),
+                            "Node " + higher.getId() + " did not respond because it is " + higher.getStatus() + " and is excluded from the election.", lamportClock.tick());
                 }
             }
         }
 
-        Long winnerNodeId = higherNodeResponded ? highestRespondingNode : initiatorNodeId;
+        // 5. Determine the winner:
+        // If a higher node responded OK, check if there are even higher nodes above it
+        Long winnerNodeId;
+        if (highestRespondingNode != null) {
+            // The highest eligible node that responded takes over
+            winnerNodeId = highestRespondingNode;
+
+            // Verify if there are any nodes higher than highestRespondingNode that might be eligible
+            final Long candidateNodeId = highestRespondingNode;
+            List<Branch> evenHigher = allBranches.stream()
+                    .filter(b -> b.getId() > candidateNodeId && b.isRunning())
+                    .toList();
+            for (Branch eh : evenHigher) {
+                BranchServiceRemote ehStub = nodeStubs.get(eh.getId());
+                if (ehStub != null) {
+                    try {
+                        if (ehStub.isNodeAlive()) {
+                            winnerNodeId = eh.getId();
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+        } else {
+            // No higher node responded -> initiator wins
+            winnerNodeId = initiatorNodeId;
+        }
+
+        // Final verification: Winner MUST be running and responsive
+        Branch winnerBranch = branchRepository.findById(winnerNodeId).orElse(null);
+        BranchServiceRemote winnerStub = nodeStubs.get(winnerNodeId);
+        boolean isWinnerAlive = false;
+        if (winnerStub != null) {
+            try {
+                isWinnerAlive = winnerStub.isNodeAlive();
+            } catch (Exception ignored) {
+                isWinnerAlive = false;
+            }
+        }
+
+        if (winnerBranch == null || !winnerBranch.isRunning() || !isWinnerAlive) {
+            // Find highest among eligible nodes
+            List<Branch> currentlyEligible = branchRepository.findAllByOrderByIdAsc().stream()
+                    .filter(b -> {
+                        if (!b.isRunning()) return false;
+                        BranchServiceRemote s = nodeStubs.get(b.getId());
+                        if (s == null) return false;
+                        try {
+                            return s.isNodeAlive();
+                        } catch (Exception e) {
+                            return false;
+                        }
+                    })
+                    .toList();
+
+            Optional<Branch> bestEligible = currentlyEligible.stream().max(Comparator.comparingLong(Branch::getId));
+            if (bestEligible.isPresent()) {
+                winnerNodeId = bestEligible.get().getId();
+                recordElectionStep("FAILOVER_RECOVERY", winnerNodeId,
+                        "Initial winner became unavailable. Fallback to highest responsive eligible Node " + winnerNodeId + ".", lamportClock.tick());
+            } else {
+                this.currentLeaderId = null;
+                coordinator.setActiveCoordinatorId(null);
+                for (Branch b : allBranches) {
+                    b.setIsCoordinator(false);
+                    branchRepository.save(b);
+                }
+                throw new IllegalStateException("Election failed: No eligible nodes are available.");
+            }
+        }
+
+        recordElectionStep("NO_HIGHER_RESPONDED", winnerNodeId,
+                "No higher-ID eligible node responded.", lamportClock.tick());
+
+        // 6. Proclaim Winner & Broadcast COORDINATOR
         this.currentLeaderId = winnerNodeId;
         coordinator.setActiveCoordinatorId(winnerNodeId);
+        coordinator.simulateFailure(false);
 
         // Update database coordinator flags
         for (Branch b : allBranches) {
@@ -118,13 +256,27 @@ public class BullyElectionService {
         }
 
         long announceTs = lamportClock.tick();
+
+        // Broadcast COORDINATOR announcement to all active node stubs
+        for (Branch b : allBranches) {
+            BranchServiceRemote stub = nodeStubs.get(b.getId());
+            if (stub != null && b.isRunning()) {
+                try {
+                    stub.handleElection(new ElectionMessage(winnerNodeId, "Leader-" + winnerNodeId, ElectionMessage.Type.COORDINATOR, announceTs));
+                } catch (Exception ignored) {}
+            }
+        }
+
         recordElectionStep("COORDINATOR_ANNOUNCED", winnerNodeId,
-                "Node " + winnerNodeId + " wins the Bully election and broadcasts COORDINATOR announcement to all nodes!", announceTs);
+                "Node " + winnerNodeId + " elected as coordinator and broadcasts COORDINATOR announcement to all nodes.", announceTs);
+        recordElectionStep("COORDINATOR_UPDATED", winnerNodeId,
+                "Coordinator updated successfully to Node " + winnerNodeId + ".", lamportClock.tick());
 
         log.info("[BULLY-ELECTION-END] Election won by Node {}. New Cluster Coordinator established. L(e)={}",
                 winnerNodeId, announceTs);
 
         Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("success", true);
         summary.put("initiatorNodeId", initiatorNodeId);
         summary.put("electedLeaderId", winnerNodeId);
         summary.put("lamportTimestamp", announceTs);
@@ -147,7 +299,28 @@ public class BullyElectionService {
     }
 
     public Long getCurrentLeaderId() {
+        if (currentLeaderId != null) {
+            Branch leader = branchRepository.findById(currentLeaderId).orElse(null);
+            if (leader == null || !leader.isRunning()) {
+                currentLeaderId = null;
+            } else {
+                BranchServiceRemote stub = nodeStubs.get(currentLeaderId);
+                if (stub != null) {
+                    try {
+                        if (!stub.isNodeAlive()) {
+                            currentLeaderId = null;
+                        }
+                    } catch (Exception e) {
+                        currentLeaderId = null;
+                    }
+                }
+            }
+        }
         return currentLeaderId;
+    }
+
+    public void setCurrentLeaderId(Long id) {
+        this.currentLeaderId = id;
     }
 
     public List<Map<String, Object>> getElectionEventHistory() {

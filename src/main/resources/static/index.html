@@ -3,149 +3,341 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Distributed Banking System | Secure Portal</title>
+    <title>NEXUS Core | Distributed Banking System & Consensus Portal</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        .auth-wrapper {
-            max-width: 480px;
-            margin: 3rem auto;
+        .spec-mini-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.85rem;
+            margin-top: 1.5rem;
         }
-        .demo-badges {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 1rem;
-            flex-wrap: wrap;
-        }
-        .demo-btn {
-            font-size: 0.75rem;
-            padding: 0.35rem 0.65rem;
-            background: #f1f5f9;
-            border: 1px solid #cbd5e1;
+        .spec-mini-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-hairline);
             border-radius: var(--radius-sm);
-            cursor: pointer;
-            color: var(--primary-navy);
-            font-weight: 500;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
-        .demo-btn:hover {
-            background: #e2e8f0;
+        .spec-mini-icon {
+            color: var(--brand-400);
+            flex-shrink: 0;
+        }
+        .spec-mini-title {
+            font-size: 0.785rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+        .spec-mini-desc {
+            font-size: 0.7rem;
+            color: var(--text-muted);
         }
     </style>
 </head>
 <body>
 
-    <!-- Navigation Header -->
+    <!-- Professional Top Navigation -->
     <header class="navbar">
         <a href="/" class="navbar-brand">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v4M12 14v4M16 14v4"/>
-            </svg>
-            Distributed Banking System
-            <span class="brand-badge">Java RMI • 2PC • MySQL</span>
+            <div class="brand-icon-box">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                    <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                    <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                </svg>
+            </div>
+            <div class="brand-title-group">
+                <span class="brand-name">NEXUS CORE <span class="badge-protocol">v2.4</span></span>
+                <span class="brand-tagline">Enterprise Distributed Banking</span>
+            </div>
         </a>
-        <div class="navbar-user">
-            <span class="badge badge-online">Cluster Active</span>
+
+        <div class="navbar-center-pill">
+            <span class="radar-beacon">
+                <span class="radar-ring"></span>
+                <span class="radar-dot"></span>
+            </span>
+            <span style="font-weight: 600; color: #34d399; font-size: 0.78rem;">3-NODE RMI CLUSTER OPERATIONAL</span>
+            <span style="color: var(--border-medium);">|</span>
+            <span class="mono" style="color: var(--brand-300, #bae6fd); font-size: 0.75rem;">PORT 1099</span>
+        </div>
+
+        <div class="navbar-meta">
+            <span class="badge-protocol" style="display: flex; align-items: center; gap: 0.4rem;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                Lamport Clocks Active
+            </span>
         </div>
     </header>
 
+    <!-- Main Content Container with Split Layout -->
     <main class="container">
-        <div class="auth-wrapper">
-            <div id="alertBox" class="alert"></div>
-
-            <div class="card">
-                <!-- Navigation Tabs -->
-                <div class="tabs">
-                    <button class="tab-btn active" id="tabCustomerBtn" onclick="switchTab('customer')">Customer Portal</button>
-                    <button class="tab-btn" id="tabAdminBtn" onclick="switchTab('admin')">Administrator Portal</button>
+        <div class="auth-split-layout">
+            
+            <!-- Left Column: High-Impact Cluster Showcase -->
+            <div class="cluster-showcase">
+                <div class="showcase-badge">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    High-Availability Cluster Architecture
                 </div>
 
-                <!-- Customer Form Section -->
-                <div id="customerTab" class="tab-content active">
-                    <h2 class="card-title" id="customerFormTitle">Customer Sign In</h2>
+                <h1 class="showcase-headline">
+                    Distributed Consensus & Mission-Critical Core Banking
+                </h1>
 
-                    <form id="customerLoginForm" onsubmit="handleCustomerLogin(event)">
-                        <div class="form-group">
-                            <label class="form-label" for="custUsername">Username</label>
-                            <input type="text" id="custUsername" class="form-control" placeholder="e.g. shreedhar" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="custPassword">Password</label>
-                            <input type="password" id="custPassword" class="form-control" placeholder="••••••••" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In as Customer</button>
+                <p class="showcase-desc">
+                    Enterprise multi-branch ledger with authentic Java Remote Method Invocation (RMI), Two-Phase Commit (2PC) atomic cross-branch execution, Bully dynamic leader election, and Lamport logical clocks enforcing strict causal event ordering.
+                </p>
 
-                        <div class="demo-badges">
-                            <span style="font-size: 0.75rem; color: var(--text-muted); align-self: center;">Quick Demo Login:</span>
-                            <button type="button" class="demo-btn" onclick="fillCustomer('shreedhar', 'user123')">Pune: Shreedhar</button>
-                            <button type="button" class="demo-btn" onclick="fillCustomer('rahul', 'user123')">Mumbai: Rahul</button>
+                <!-- Live Node Status Ticker -->
+                <div class="node-status-ticker-grid">
+                    <div class="ticker-node-card">
+                        <div class="ticker-node-header">
+                            <span class="ticker-node-name">Pune Central</span>
+                            <span class="status-badge badge-running" style="font-size: 0.65rem; padding: 0.15rem 0.45rem;">RUNNING</span>
                         </div>
-                        <p style="margin-top: 1.25rem; font-size: 0.85rem; text-align: center; color: var(--text-muted);">
-                            Don't have an account? <a href="#" onclick="toggleCustomerRegister(true)" style="color: var(--accent-blue); font-weight: 600;">Register Here</a>
-                        </p>
-                    </form>
+                        <div class="ticker-node-port">Node 1 • PUN01</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem;">RMI Stub Bound</div>
+                    </div>
 
-                    <!-- Customer Registration Form -->
-                    <form id="customerRegisterForm" style="display: none;" onsubmit="handleCustomerRegister(event)">
-                        <div class="form-group">
-                            <label class="form-label" for="regUsername">Choose Username</label>
-                            <input type="text" id="regUsername" class="form-control" placeholder="e.g. anita_k" required>
+                    <div class="ticker-node-card">
+                        <div class="ticker-node-header">
+                            <span class="ticker-node-name">Mumbai Main</span>
+                            <span class="status-badge badge-running" style="font-size: 0.65rem; padding: 0.15rem 0.45rem;">RUNNING</span>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label" for="regFullName">Full Legal Name</label>
-                            <input type="text" id="regFullName" class="form-control" placeholder="e.g. Anita Kulkarni" required>
+                        <div class="ticker-node-port">Node 2 • MUM02</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem;">RMI Stub Bound</div>
+                    </div>
+
+                    <div class="ticker-node-card" style="border-color: rgba(14, 165, 233, 0.4); background: rgba(14, 165, 233, 0.05);">
+                        <div class="ticker-node-header">
+                            <span class="ticker-node-name">Delhi Regional</span>
+                            <span class="status-badge badge-coordinator" style="font-size: 0.65rem; padding: 0.15rem 0.45rem;">COORDINATOR</span>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label" for="regEmail">Email Address</label>
-                            <input type="email" id="regEmail" class="form-control" placeholder="anita@example.com" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="regBranch">Home Bank Branch</label>
-                            <select id="regBranch" class="form-control" required>
-                                <option value="1">Branch 1: Pune Central Branch (PUN)</option>
-                                <option value="2">Branch 2: Mumbai Main Branch (MUM)</option>
-                                <option value="3">Branch 3: Delhi Regional Hub (DEL)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="regPassword">Password (min 6 chars)</label>
-                            <input type="password" id="regPassword" class="form-control" placeholder="••••••••" minlength="6" required>
-                        </div>
-                        <button type="submit" class="btn btn-accent" style="width: 100%;">Create Customer Account</button>
-                        <p style="margin-top: 1.25rem; font-size: 0.85rem; text-align: center; color: var(--text-muted);">
-                            Already have an account? <a href="#" onclick="toggleCustomerRegister(false)" style="color: var(--accent-blue); font-weight: 600;">Back to Sign In</a>
-                        </p>
-                    </form>
+                        <div class="ticker-node-port">Node 3 • DEL03</div>
+                        <div style="font-size: 0.72rem; color: var(--brand-300, #bae6fd); margin-top: 0.35rem;">2PC Protocol Head</div>
+                    </div>
                 </div>
 
-                <!-- Admin Tab Section -->
-                <div id="adminTab" class="tab-content">
-                    <h2 class="card-title">System Administrator Access</h2>
-                    <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
-                        <div class="form-group">
-                            <label class="form-label" for="adminUsername">Administrator Username</label>
-                            <input type="text" id="adminUsername" class="form-control" value="admin" required>
+                <!-- Architectural Specifications -->
+                <div class="spec-mini-grid">
+                    <div class="spec-mini-box">
+                        <div class="spec-mini-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <polyline points="1 20 1 14 7 14"></polyline>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label" for="adminPassword">Administrator Password</label>
-                            <input type="password" id="adminPassword" class="form-control" value="admin123" required>
+                        <div>
+                            <div class="spec-mini-title">Two-Phase Commit (2PC)</div>
+                            <div class="spec-mini-desc">Atomic all-or-nothing inter-branch transfers</div>
                         </div>
-                        <button type="submit" class="btn btn-primary" style="width: 100%;">Enter Administrator Dashboard</button>
-                        <div class="demo-badges">
-                            <span style="font-size: 0.75rem; color: var(--text-muted); align-self: center;">Default:</span>
-                            <button type="button" class="demo-btn" onclick="fillAdmin('admin', 'admin123')">admin / admin123</button>
+                    </div>
+
+                    <div class="spec-mini-box">
+                        <div class="spec-mini-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
                         </div>
-                    </form>
+                        <div>
+                            <div class="spec-mini-title">Lamport Logical Clocks</div>
+                            <div class="spec-mini-desc">Strict partial ordering of distributed events L(e)</div>
+                        </div>
+                    </div>
+
+                    <div class="spec-mini-box">
+                        <div class="spec-mini-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="spec-mini-title">Bully Leader Election</div>
+                            <div class="spec-mini-desc">Dynamic consensus with node liveness checks</div>
+                        </div>
+                    </div>
+
+                    <div class="spec-mini-box">
+                        <div class="spec-mini-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="spec-mini-title">Peer Data Replication</div>
+                            <div class="spec-mini-desc">Automated audit reconciliation upon reconnect</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Architecture Info Card -->
-            <div class="card" style="font-size: 0.825rem; color: var(--text-muted); background: #f8fafc;">
-                <p><strong>System Architecture Note:</strong> This application demonstrates a multi-branch distributed banking system featuring authentic Java Remote Method Invocation (RMI), Two-Phase Commit (2PC) atomic inter-branch transactions, Lamport logical clocks, Bully leader election, and automated replication reconciliation.</p>
+            <!-- Right Column: Glassmorphic Access Terminal -->
+            <div>
+                <!-- Global Feedback Alert -->
+                <div id="alertBox" class="alert"></div>
+
+                <div class="card" style="box-shadow: var(--shadow-lg), 0 0 32px rgba(14, 165, 233, 0.1);">
+                    <!-- Tabs Navigation -->
+                    <div class="tabs">
+                        <button class="tab-btn active" id="tabCustomerBtn" onclick="switchTab('customer')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                            Customer Banking
+                        </button>
+                        <button class="tab-btn" id="tabAdminBtn" onclick="switchTab('admin')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                            </svg>
+                            Cluster Supervisor
+                        </button>
+                    </div>
+
+                    <!-- Customer Section -->
+                    <div id="customerTab" class="tab-content active">
+                        <h2 class="card-title" id="customerFormTitle" style="margin-bottom: 1rem;">
+                            Customer Sign In
+                        </h2>
+
+                        <!-- Customer Login Form -->
+                        <form id="customerLoginForm" onsubmit="handleCustomerLogin(event)">
+                            <div class="form-group">
+                                <label class="form-label" for="custUsername">Customer Account Username</label>
+                                <input type="text" id="custUsername" class="form-control" placeholder="e.g. shreedhar or rahul" required autocomplete="username">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="custPassword">Account Password</label>
+                                <input type="password" id="custPassword" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="btnCustLogin" style="width: 100%; margin-top: 0.5rem;">
+                                Sign In to Customer Portal
+                            </button>
+
+                            <!-- Sandbox Demo Profiles -->
+                            <div class="sandbox-profiles-row">
+                                <span style="font-size: 0.725rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                                    Sandbox Test Profiles (1-Click Fill):
+                                </span>
+                                <div class="sandbox-chips-wrapper">
+                                    <button type="button" class="sandbox-chip" onclick="fillCustomer('shreedhar', 'user123')">
+                                        <span class="mono" style="color: #38bdf8;">PUN-1001</span>
+                                        <strong>Shreedhar</strong>
+                                    </button>
+                                    <button type="button" class="sandbox-chip" onclick="fillCustomer('rahul', 'user123')">
+                                        <span class="mono" style="color: #38bdf8;">MUM-2001</span>
+                                        <strong>Rahul</strong>
+                                    </button>
+                                    <button type="button" class="sandbox-chip" onclick="fillCustomer('vikram', 'user123')">
+                                        <span class="mono" style="color: #38bdf8;">DEL-3001</span>
+                                        <strong>Vikram</strong>
+                                    </button>
+                                    <button type="button" class="sandbox-chip" onclick="fillCustomer('aditi', 'user123')">
+                                        <span class="mono" style="color: #38bdf8;">PUN-1002</span>
+                                        <strong>Aditi</strong>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <p style="margin-top: 1.25rem; font-size: 0.825rem; text-align: center; color: var(--text-muted);">
+                                New customer? <a href="javascript:void(0)" onclick="toggleCustomerRegister(true)" style="color: var(--brand-400); font-weight: 600; text-decoration: none;">Open a Verified Account</a>
+                            </p>
+                        </form>
+
+                        <!-- Customer Registration Form -->
+                        <form id="customerRegisterForm" style="display: none;" onsubmit="handleCustomerRegister(event)">
+                            <div class="form-group">
+                                <label class="form-label" for="regUsername">Choose Username</label>
+                                <input type="text" id="regUsername" class="form-control" placeholder="e.g. anita_k" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="regFullName">Full Legal Name</label>
+                                <input type="text" id="regFullName" class="form-control" placeholder="e.g. Anita Kulkarni" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="regEmail">Email Address</label>
+                                <input type="email" id="regEmail" class="form-control" placeholder="anita@example.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="regBranch">Home Bank Branch</label>
+                                <select id="regBranch" class="form-control" required>
+                                    <option value="1">Branch 1: Pune Central Branch (PUN01)</option>
+                                    <option value="2">Branch 2: Mumbai Main Branch (MUM02)</option>
+                                    <option value="3">Branch 3: Delhi Regional Hub (DEL03)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="regPassword">Password (min 6 chars)</label>
+                                <input type="password" id="regPassword" class="form-control" placeholder="••••••••" minlength="6" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="btnCustRegister" style="width: 100%; margin-top: 0.5rem;">
+                                Create Customer Account
+                            </button>
+                            <p style="margin-top: 1.25rem; font-size: 0.825rem; text-align: center; color: var(--text-muted);">
+                                Already registered? <a href="javascript:void(0)" onclick="toggleCustomerRegister(false)" style="color: var(--brand-400); font-weight: 600; text-decoration: none;">Back to Sign In</a>
+                            </p>
+                        </form>
+                    </div>
+
+                    <!-- Administrator Section -->
+                    <div id="adminTab" class="tab-content">
+                        <h2 class="card-title" style="margin-bottom: 0.5rem;">
+                            Cluster Supervisor Console
+                        </h2>
+                        <p class="card-subtitle">
+                            Restricted access for cluster operations, node lifecycle fault injection, Bully election triggers, and 2PC audit monitoring.
+                        </p>
+
+                        <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
+                            <div class="form-group">
+                                <label class="form-label" for="adminUsername">Supervisor Username</label>
+                                <input type="text" id="adminUsername" class="form-control" value="admin" required autocomplete="username">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="adminPassword">Supervisor Password</label>
+                                <input type="password" id="adminPassword" class="form-control" value="admin123" required autocomplete="current-password">
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="btnAdminLogin" style="width: 100%; margin-top: 0.5rem;">
+                                Enter Cluster Supervisor Console
+                            </button>
+
+                            <div class="sandbox-profiles-row">
+                                <span style="font-size: 0.725rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">
+                                    Default Supervisor Credentials:
+                                </span>
+                                <div class="sandbox-chips-wrapper">
+                                    <button type="button" class="sandbox-chip" onclick="fillAdmin('admin', 'admin123')">
+                                        <span class="mono" style="color: #a855f7;">ADMIN</span>
+                                        <strong>admin / admin123</strong>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
+
         </div>
     </main>
 
+    <!-- Professional Footer -->
     <footer class="footer">
-        Distributed Computing Systems Laboratory Mini Project • B.Tech Computer Engineering
+        NEXUS CORE • Distributed Banking Infrastructure Platform • Java RMI, Two-Phase Commit (2PC) & Lamport Logical Ordering
     </footer>
 
     <script src="/js/app.js"></script>

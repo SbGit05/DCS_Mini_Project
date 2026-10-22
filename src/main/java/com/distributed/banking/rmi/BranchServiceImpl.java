@@ -19,6 +19,7 @@ import java.util.List;
  * Authentic RMI implementation for an individual bank branch node.
  * Uses programmatic TransactionTemplate to ensure database transaction boundaries
  * are guaranteed across remote RMI thread pools.
+ * Strictly maintains authoritative node lifecycle states: RUNNING, STOPPED, CRASHED, RECOVERING.
  */
 public class BranchServiceImpl extends UnicastRemoteObject implements BranchServiceRemote {
 
@@ -35,7 +36,7 @@ public class BranchServiceImpl extends UnicastRemoteObject implements BranchServ
     private final BranchRepository branchRepository;
     private final TransactionTemplate transactionTemplate;
 
-    private volatile boolean simulatedFailure = false;
+    private volatile String lifecycleState = Branch.STATE_RUNNING;
 
     public BranchServiceImpl(Long nodeId, String nodeName, LamportClock lamportClock,
                              AccountRepository accountRepository,
@@ -59,9 +60,51 @@ public class BranchServiceImpl extends UnicastRemoteObject implements BranchServ
     }
 
     private void checkLiveness() throws RemoteException {
-        if (simulatedFailure) {
-            throw new RemoteException("Branch node '" + nodeName + "' (ID: " + nodeId + ") is UNAVAILABLE due to simulated crash/network failure.");
+        if (!isNodeAlive()) {
+            throw new RemoteException("Branch node '" + nodeName + "' (ID: " + nodeId + ") is " + lifecycleState + " and cannot process operations.");
         }
+    }
+
+    @Override
+    public boolean isNodeAlive() throws RemoteException {
+        return Branch.STATE_RUNNING.equalsIgnoreCase(lifecycleState) || "ONLINE".equalsIgnoreCase(lifecycleState);
+    }
+
+    @Override
+    public String getNodeState() throws RemoteException {
+        return this.lifecycleState;
+    }
+
+    @Override
+    public void setNodeState(String state) throws RemoteException {
+        String normalized = state.toUpperCase().trim();
+        this.lifecycleState = normalized;
+
+        final boolean isAlive = Branch.STATE_RUNNING.equalsIgnoreCase(normalized) || "ONLINE".equalsIgnoreCase(normalized);
+        branchRepository.findById(nodeId).ifPresent(b -> {
+            b.setStatus(normalized);
+            if (!isAlive) {
+                // An unavailable node cannot retain coordinator designation
+                b.setIsCoordinator(false);
+            }
+            branchRepository.save(b);
+        });
+
+        long ts = lamportClock.tick();
+        String eventType = switch (normalized) {
+            case Branch.STATE_STOPPED -> "NODE_STOPPED";
+            case Branch.STATE_CRASHED -> "NODE_CRASHED";
+            case Branch.STATE_RECOVERING -> "NODE_RECOVERING";
+            default -> "NODE_STARTED";
+        };
+
+        logEvent(eventType, "Branch node " + nodeName + " (ID: " + nodeId + ") transitioned to " + normalized);
+        log.info("Node {} state updated to {}", nodeId, normalized);
+    }
+
+    @Override
+    public void simulateFailure(boolean fail) throws RemoteException {
+        setNodeState(fail ? Branch.STATE_CRASHED : Branch.STATE_RUNNING);
     }
 
     @Override
@@ -82,6 +125,12 @@ public class BranchServiceImpl extends UnicastRemoteObject implements BranchServ
                 }
 
                 Account account = accOpt.get();
+                if (account.getBranch() == null || !account.getBranch().getId().equals(nodeId)) {
+                    logEvent("TXN_PREPARE_REJECT", "Debit prepare rejected: Account " + request.getAccountNumber() + " does not belong to branch " + nodeName);
+                    return new PrepareResponse(request.getGlobalTransactionId(), "VOTE_ABORT",
+                            "Account " + request.getAccountNumber() + " does not belong to branch " + nodeName, lamportClock.tick());
+                }
+
                 if (!"ACTIVE".equalsIgnoreCase(account.getStatus())) {
                     logEvent("TXN_PREPARE_REJECT", "Debit prepare rejected: Account is " + account.getStatus());
                     return new PrepareResponse(request.getGlobalTransactionId(), "VOTE_ABORT",
@@ -126,6 +175,12 @@ public class BranchServiceImpl extends UnicastRemoteObject implements BranchServ
                 }
 
                 Account account = accOpt.get();
+                if (account.getBranch() == null || !account.getBranch().getId().equals(nodeId)) {
+                    logEvent("TXN_PREPARE_REJECT", "Credit prepare rejected: Target account " + request.getAccountNumber() + " does not belong to branch " + nodeName);
+                    return new PrepareResponse(request.getGlobalTransactionId(), "VOTE_ABORT",
+                            "Destination account " + request.getAccountNumber() + " does not belong to branch " + nodeName, lamportClock.tick());
+                }
+
                 if (!"ACTIVE".equalsIgnoreCase(account.getStatus())) {
                     logEvent("TXN_PREPARE_REJECT", "Credit prepare rejected: Target account is " + account.getStatus());
                     return new PrepareResponse(request.getGlobalTransactionId(), "VOTE_ABORT",
@@ -166,6 +221,11 @@ public class BranchServiceImpl extends UnicastRemoteObject implements BranchServ
                     var accOpt = accountRepository.findByAccountNumberForUpdate(res.getAccountNumber());
                     if (accOpt.isPresent()) {
                         Account account = accOpt.get();
+                        // Only process accounts belonging to this node's branch
+                        if (account.getBranch() != null && !account.getBranch().getId().equals(nodeId)) {
+                            continue;
+                        }
+
                         if ("DEBIT_RESERVATION".equalsIgnoreCase(res.getReservationType())) {
                             account.setBalance(account.getBalance().subtract(res.getAmount()));
                             log.info("Node {} committed DEBIT of {} from {}", nodeId, res.getAmount(), account.getAccountNumber());
@@ -174,22 +234,26 @@ public class BranchServiceImpl extends UnicastRemoteObject implements BranchServ
                             log.info("Node {} committed CREDIT of {} to {}", nodeId, res.getAmount(), account.getAccountNumber());
                         }
                         accountRepository.save(account);
+                        res.setStatus("COMMITTED");
+                        reservationRepository.save(res);
                     }
-                    res.setStatus("COMMITTED");
-                    reservationRepository.save(res);
                 }
 
-                logEvent("TXN_COMMIT", "Phase 2 COMMIT executed for GTX: " + request.getGlobalTransactionId());
-                return new CommitResponse(request.getGlobalTransactionId(), true, "Committed successfully", lamportClock.tick());
+                logEvent("TXN_COMMIT", "Phase 2 COMMIT executed for GTX: " + request.getGlobalTransactionId() + " on Node " + nodeId);
+                return new CommitResponse(request.getGlobalTransactionId(), true, "Committed successfully on Node " + nodeId, lamportClock.tick());
 
             } else {
                 for (PreparedReservation res : reservations) {
+                    var accOpt = accountRepository.findByAccountNumber(res.getAccountNumber());
+                    if (accOpt.isPresent() && accOpt.get().getBranch() != null && !accOpt.get().getBranch().getId().equals(nodeId)) {
+                        continue;
+                    }
                     res.setStatus("RELEASED");
                     reservationRepository.save(res);
                 }
 
-                logEvent("TXN_ABORT", "Phase 2 ABORT executed for GTX: " + request.getGlobalTransactionId() + ". Reservations released.");
-                return new CommitResponse(request.getGlobalTransactionId(), true, "Aborted and locks released", lamportClock.tick());
+                logEvent("TXN_ABORT", "Phase 2 ABORT executed for GTX: " + request.getGlobalTransactionId() + " on Node " + nodeId + ". Reservations released.");
+                return new CommitResponse(request.getGlobalTransactionId(), true, "Aborted and locks released on Node " + nodeId, lamportClock.tick());
             }
         });
     }
@@ -224,7 +288,7 @@ public class BranchServiceImpl extends UnicastRemoteObject implements BranchServ
     public HeartbeatMessage ping(HeartbeatMessage msg) throws RemoteException {
         checkLiveness();
         lamportClock.updateAndTick(msg.getLamportTimestamp());
-        return new HeartbeatMessage(nodeId, nodeName, false, "ONLINE", lamportClock.tick());
+        return new HeartbeatMessage(nodeId, nodeName, false, lifecycleState, lamportClock.tick());
     }
 
     @Override
@@ -253,26 +317,6 @@ public class BranchServiceImpl extends UnicastRemoteObject implements BranchServ
         return accountRepository.findByAccountNumber(accountNumber)
                 .map(Account::getBalance)
                 .orElseThrow(() -> new RemoteException("Account " + accountNumber + " not found at branch " + nodeName));
-    }
-
-    @Override
-    public boolean isNodeAlive() throws RemoteException {
-        return !simulatedFailure;
-    }
-
-    @Override
-    public void simulateFailure(boolean fail) throws RemoteException {
-        this.simulatedFailure = fail;
-        String status = fail ? "UNAVAILABLE" : "ONLINE";
-        branchRepository.findById(nodeId).ifPresent(b -> {
-            b.setStatus(status);
-            branchRepository.save(b);
-        });
-
-        long ts = lamportClock.tick();
-        logEvent(fail ? "NODE_FAILURE" : "NODE_RECOVERY",
-                "Branch node " + nodeName + " (ID: " + nodeId + ") marked as " + status + " (simulated)");
-        log.warn("Node {} simulated failure set to {}", nodeId, fail);
     }
 
     private void logEvent(String eventType, String message) {

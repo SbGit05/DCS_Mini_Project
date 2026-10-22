@@ -36,3 +36,4 @@ build/
 *.log
 *.err
 *.pid
+.DS_Store

@@ -88,8 +88,8 @@ public class TwoPhaseCommitCoordinator {
     public TwoPhaseTransaction executeTransfer(String fromAccount, String toAccount,
                                               Long sourceBranchId, Long destBranchId,
                                               BigDecimal amount, String idempotencyKey) {
-        if (simulatedFailure) {
-            throw new RuntimeException("2PC Coordinator (Node " + activeCoordinatorId + ") is UNAVAILABLE (Simulated Failure).");
+        if (simulatedFailure || activeCoordinatorId == null || !isCoordinatorAlive()) {
+            throw new IllegalStateException("2PC Coordinator (Node " + (activeCoordinatorId != null ? activeCoordinatorId : "None") + ") is UNAVAILABLE. Please initiate a Bully Leader Election to designate an active coordinator.");
         }
 
         // 1. Idempotency check: Return existing committed/aborted transaction if already processed
@@ -199,9 +199,11 @@ public class TwoPhaseCommitCoordinator {
         );
         transactionRepository.save(txn);
 
-        // Replicate to peer branch audit log
+        // Replicate to peer branch audit log (debit on source, credit on destination)
         replicationManager.recordTransaction(gtx.getSourceBranchId(), gtx.getDestBranchId(),
-                gtx.getGlobalTransactionId(), gtx.getSourceAccount(), "BALANCE_UPDATE", gtx.getAmount());
+                gtx.getGlobalTransactionId(), gtx.getSourceAccount(), "BALANCE_UPDATE", gtx.getAmount().negate());
+        replicationManager.recordTransaction(gtx.getDestBranchId(), gtx.getSourceBranchId(),
+                gtx.getGlobalTransactionId(), gtx.getDestAccount(), "BALANCE_UPDATE", gtx.getAmount());
 
         return gtx;
     }
@@ -264,5 +266,16 @@ public class TwoPhaseCommitCoordinator {
 
     public boolean isSimulatedFailure() {
         return simulatedFailure;
+    }
+
+    public boolean isCoordinatorAlive() {
+        if (activeCoordinatorId == null || simulatedFailure) return false;
+        BranchServiceRemote stub = getBranchStub(activeCoordinatorId);
+        if (stub == null) return false;
+        try {
+            return stub.isNodeAlive();
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

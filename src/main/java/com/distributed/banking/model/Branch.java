@@ -7,6 +7,11 @@ import java.time.LocalDateTime;
 @Table(name = "branches")
 public class Branch {
 
+    public static final String STATE_RUNNING = "RUNNING";
+    public static final String STATE_STOPPED = "STOPPED";
+    public static final String STATE_CRASHED = "CRASHED";
+    public static final String STATE_RECOVERING = "RECOVERING";
+
     @Id
     private Long id; // Explicit node numeric ID (e.g. 1, 2, 3)
 
@@ -29,7 +34,7 @@ public class Branch {
     private String rmiServiceName;
 
     @Column(nullable = false, length = 20)
-    private String status; // ONLINE, UNAVAILABLE, RECOVERING
+    private String status; // RUNNING (or ONLINE), STOPPED, CRASHED, RECOVERING
 
     @Column(name = "is_coordinator", nullable = false)
     private Boolean isCoordinator;
@@ -50,6 +55,14 @@ public class Branch {
         this.status = status;
         this.isCoordinator = isCoordinator;
         this.lastHeartbeat = LocalDateTime.now();
+    }
+
+    public boolean isRunning() {
+        return STATE_RUNNING.equalsIgnoreCase(status) || "ONLINE".equalsIgnoreCase(status);
+    }
+
+    public boolean isEligibleForElection() {
+        return isRunning();
     }
 
     public Long getId() { return id; }

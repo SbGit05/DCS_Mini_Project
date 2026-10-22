@@ -14,7 +14,9 @@ VALUES
 (2, 'shreedhar', '$2b$10$xhQrtwnzNs9B13Tdcx5gbeSASdgCptOnxKlWoJsmq4nSmzSiXSetq', 'Shreedhar Kulkarni', 'shreedhar@example.com', 'ROLE_CUSTOMER'),
 (3, 'aditi', '$2b$10$xhQrtwnzNs9B13Tdcx5gbeSASdgCptOnxKlWoJsmq4nSmzSiXSetq', 'Aditi Sharma', 'aditi@example.com', 'ROLE_CUSTOMER'),
 (4, 'rahul', '$2b$10$xhQrtwnzNs9B13Tdcx5gbeSASdgCptOnxKlWoJsmq4nSmzSiXSetq', 'Rahul Verma', 'rahul@example.com', 'ROLE_CUSTOMER'),
-(5, 'priya', '$2b$10$xhQrtwnzNs9B13Tdcx5gbeSASdgCptOnxKlWoJsmq4nSmzSiXSetq', 'Priya Patel', 'priya@example.com', 'ROLE_CUSTOMER');
+(5, 'priya', '$2b$10$xhQrtwnzNs9B13Tdcx5gbeSASdgCptOnxKlWoJsmq4nSmzSiXSetq', 'Priya Patel', 'priya@example.com', 'ROLE_CUSTOMER'),
+(6, 'vikram', '$2b$10$xhQrtwnzNs9B13Tdcx5gbeSASdgCptOnxKlWoJsmq4nSmzSiXSetq', 'Vikram Malhotra', 'vikram@example.com', 'ROLE_CUSTOMER'),
+(7, 'neha', '$2b$10$xhQrtwnzNs9B13Tdcx5gbeSASdgCptOnxKlWoJsmq4nSmzSiXSetq', 'Neha Sharma', 'neha@example.com', 'ROLE_CUSTOMER');
 
 -- 3. Accounts
 INSERT INTO accounts (id, account_number, user_id, branch_id, account_type, balance, status, version)
@@ -22,7 +24,9 @@ VALUES
 (1, 'PUN-1001', 2, 1, 'SAVINGS', 25000.00, 'ACTIVE', 0),
 (2, 'PUN-1002', 3, 1, 'SAVINGS', 15000.00, 'ACTIVE', 0),
 (3, 'MUM-2001', 4, 2, 'SAVINGS', 30000.00, 'ACTIVE', 0),
-(4, 'MUM-2002', 5, 2, 'SAVINGS', 18000.00, 'ACTIVE', 0);
+(4, 'MUM-2002', 5, 2, 'SAVINGS', 18000.00, 'ACTIVE', 0),
+(5, 'DEL-3001', 6, 3, 'SAVINGS', 35000.00, 'ACTIVE', 0),
+(6, 'DEL-3002', 7, 3, 'SAVINGS', 20000.00, 'ACTIVE', 0);
 
 -- 4. Initial Lamport Clock Events
 INSERT INTO lamport_event_log (node_id, node_name, logical_timestamp, event_type, message)

@@ -56,7 +56,7 @@ public class CustomerController {
         try {
             User user = authenticateCustomer(authHeader);
             String accountNumber = (String) req.get("accountNumber");
-            BigDecimal amount = new BigDecimal(req.get("amount").toString());
+            BigDecimal amount = parseAmount(req.get("amount"));
             String idempotencyKey = (String) req.get("idempotencyKey");
 
             // Verify account belongs to user (or admin)
@@ -89,7 +89,7 @@ public class CustomerController {
         try {
             User user = authenticateCustomer(authHeader);
             String accountNumber = (String) req.get("accountNumber");
-            BigDecimal amount = new BigDecimal(req.get("amount").toString());
+            BigDecimal amount = parseAmount(req.get("amount"));
             String idempotencyKey = (String) req.get("idempotencyKey");
 
             verifyAccountOwnership(user, accountNumber);
@@ -122,7 +122,7 @@ public class CustomerController {
             User user = authenticateCustomer(authHeader);
             String fromAccount = (String) req.get("fromAccount");
             String toAccount = (String) req.get("toAccount");
-            BigDecimal amount = new BigDecimal(req.get("amount").toString());
+            BigDecimal amount = parseAmount(req.get("amount"));
             String idempotencyKey = (String) req.get("idempotencyKey");
 
             verifyAccountOwnership(user, fromAccount);
@@ -149,6 +149,25 @@ public class CustomerController {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("success", false, "error", "Transfer processing error: " + e.getMessage()));
+        }
+    }
+
+    private BigDecimal parseAmount(Object obj) {
+        if (obj == null) {
+            throw new IllegalArgumentException("Transaction amount is required.");
+        }
+        String str = obj.toString().trim();
+        if (str.isEmpty()) {
+            throw new IllegalArgumentException("Transaction amount cannot be empty.");
+        }
+        try {
+            BigDecimal amt = new BigDecimal(str);
+            if (amt.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Transaction amount must be positive and greater than zero.");
+            }
+            return amt;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid amount format '" + str + "'. Please enter a valid numeric value.");
         }
     }
 

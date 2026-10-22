@@ -60,7 +60,7 @@ public class AuditService {
         List<TwoPhaseTransaction> twoPhaseTxns = twoPhaseRepository.findTop50ByOrderByCreatedAtDesc();
         List<LamportEvent> events = eventRepository.findTop100ByOrderByLogicalTimestampDesc();
 
-        long onlineNodes = branches.stream().filter(b -> "ONLINE".equalsIgnoreCase(b.getStatus())).count();
+        long onlineNodes = branches.stream().filter(Branch::isRunning).count();
         BigDecimal totalDeposits = accounts.stream().map(Account::getBalance).reduce(BigDecimal.ZERO, BigDecimal::add);
 
         stats.put("totalBranches", branches.size());
@@ -78,6 +78,7 @@ public class AuditService {
         stats.put("twoPhaseTransactions", twoPhaseTxns);
         stats.put("lamportEvents", events);
         stats.put("replicationDiscrepancies", replicationManager.checkDiscrepancies());
+        stats.put("replicationRecords", replicationRepository.findTop50ByOrderBySequenceNumberDesc());
 
         return stats;
     }

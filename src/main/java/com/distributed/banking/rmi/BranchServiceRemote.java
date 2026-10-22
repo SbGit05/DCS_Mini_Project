@@ -48,6 +48,16 @@ public interface BranchServiceRemote extends Remote {
     boolean isNodeAlive() throws RemoteException;
 
     /**
+     * Sets explicit node lifecycle state (RUNNING, STOPPED, CRASHED, RECOVERING).
+     */
+    void setNodeState(String state) throws RemoteException;
+
+    /**
+     * Retrieves the current node lifecycle state.
+     */
+    String getNodeState() throws RemoteException;
+
+    /**
      * Simulates branch crash / network failure for laboratory demonstration.
      */
     void simulateFailure(boolean fail) throws RemoteException;
